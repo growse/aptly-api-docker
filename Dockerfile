@@ -1,6 +1,6 @@
 FROM debian:bullseye-20220801-slim@sha256:139a42fa3bde3e5bad6ae912aaaf2103565558a7a73afe6ce6ceed6e46a6e519
 
-RUN apt-get update && apt-get install -y aptly gnupg2 python3 python3-apt vim && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y aptly gnupg2 python3 python3-apt && rm -rf /var/lib/apt/lists/*
 
 VOLUME /var/lib/aptly-api
 

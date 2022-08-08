@@ -1,15 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # From https://github.com/aptly-dev/aptly/issues/291#issuecomment-276404030
-
-from __future__ import print_function
 
 import argparse
 import re
 import sys
+from time import sleep
+from typing import List
 
 from apt_pkg import version_compare, init_system
 from subprocess import check_output, CalledProcessError
+from functools import cmp_to_key
+from tqdm import tqdm
 
 
 class PurgeOldVersions:
@@ -18,57 +20,65 @@ class PurgeOldVersions:
 
         if self.args.dry_run:
             print("Run in dry mode, without actually deleting the packages.")
-
         if not self.args.repo:
             sys.exit("You must declare a repository with: --repo")
 
-        if not self.args.package_query:
-            sys.exit("You must declare a package query with: --package-query")
-
-        print("Remove " + self.args.package_query + " from " + self.args.repo +
-              " and keep the last " + str(self.args.retain_how_many) +
-              " packages")
-
     @staticmethod
     def parse_arguments():
-        parser = argparse.ArgumentParser(
-            formatter_class=argparse.RawTextHelpFormatter)
-        parser.add_argument("--dry-run", dest="dry_run",
-                            help="List packages to remove without removing "
-                                 "them.", action="store_true")
-        parser.add_argument("--repo", dest="repo",
-                            help="Which repository should be searched?",
-                            type=str)
-        parser.add_argument("--package-query", dest="package_query",
-                            help="Which packages should be removed?\n"
-                                 "e.g.\n"
-                                 "  - Single package: ros-indigo-rbdl.\n"
-                                 "  - Query: 'Name (%% ros-indigo-*)' "
-                                 "to match all ros-indigo packages. See \n"
-                                 "https://www.aptly.info/doc/feature/query/",
-                            type=str)
-        parser.add_argument("-n", "--retain-how-many", dest="retain_how_many",
-                            help="How many package versions should be kept?",
-                            type=int, default=1)
+        parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+        parser.add_argument(
+            "--dry-run",
+            dest="dry_run",
+            help="List packages to remove without removing " "them.",
+            action="store_true",
+        )
+        parser.add_argument(
+            "--repo", dest="repo", help="Which repository should be searched?", type=str
+        )
+        parser.add_argument(
+            "--package-query",
+            dest="package_query",
+            help="Which packages should be removed?\n"
+            "e.g.\n"
+            "  - Single package: ros-indigo-rbdl.\n"
+            "  - Query: 'Name (%% ros-indigo-*)' "
+            "to match all ros-indigo packages. See \n"
+            "https://www.aptly.info/doc/feature/query/",
+            type=str,
+            default="",
+        )
+        parser.add_argument(
+            "-n",
+            "--retain-how-many",
+            dest="retain_how_many",
+            help="How many package versions should be kept?",
+            type=int,
+            default=1,
+        )
         return parser.parse_args()
 
-    def get_packages(self):
+    def get_packages(self) -> List[str]:
         init_system()
 
         packages = []
 
         try:
-            output = check_output(["aptly", "repo", "remove", "-dry-run=true",
-                                   self.args.repo, self.args.package_query])
-            output = [line for line in output.split("\n") if
-                      line.startswith("[-]")]
-            output = [line.replace("[-] ", "") for line in output]
+            output: bytes = check_output(
+                ["aptly", "repo", "search", self.args.repo, self.args.package_query]
+                if self.args.package_query
+                else ["aptly", "repo", "search", self.args.repo]
+            )
 
-            for p in output:
-                packages.append(
-                    re.sub("[_](\d{1,}[:])?\d{1,}[.]\d{1,}[.]\d{1,}[-](.*)", '', p))
-            packages = list(set(packages))
-            packages.sort()
+            packages = sorted(
+                set(
+                    map(
+                        lambda p: re.sub(
+                            "[_](\d{1,}[:])?\d{1,}[.]\d{1,}[.]\d{1,}[-](.*)", "", p
+                        ),
+                        [line for line in output.decode().split("\n") if len(line) > 0],
+                    )
+                )
+            )
 
         except CalledProcessError as e:
             print(e)
@@ -76,86 +86,52 @@ class PurgeOldVersions:
         finally:
             return packages
 
-    def purge(self):
-        init_system()
-
+    def purge(self) -> None:
         packages = self.get_packages()
         if not packages:
             sys.exit("No packages to remove.")
+        else:
+            print(f"{len(packages)} package names to look at: {','.join(packages)}")
 
-        # Initial call to print 0% progress
-        i = 0
-        l = len(packages)
-        printProgressBar(i, l, prefix='Progress:', suffix='Complete', length=50)
-
-        packages_to_remove = []
+        packages_to_remove: List[str] = []
         for package in packages:
             try:
-                output = check_output(["aptly", "repo", "remove",
-                                       "-dry-run=true", self.args.repo,
-                                       package])
-                output = [line for line in output.split("\n") if
-                          line.startswith("[-]")]
-                output = [line.replace("[-] ", "") for line in output]
-                output = [line.replace(" removed", "") for line in output]
+                output = check_output(
+                    ["aptly", "repo", "search", self.args.repo, package]
+                )
 
-                def sort_cmp(name1, name2):
+                def sort_by_version_cmp(name1, name2):
                     version_and_build_1 = name1.split("_")[1]
                     version_and_build_2 = name2.split("_")[1]
-                    return version_compare(version_and_build_1,
-                                           version_and_build_2)
+                    return version_compare(version_and_build_1, version_and_build_2)
 
-                output.sort(cmp=sort_cmp)
-                should_delete = output[:-self.args.retain_how_many]
-                packages_to_remove += should_delete
-
-                i += 1
-                printProgressBar(i, l, prefix='Progress:', suffix='Complete',
-                                 length=100)
+                packages_to_remove.extend(
+                    sorted(
+                        [line for line in output.decode().split("\n") if len(line) > 0],
+                        key=cmp_to_key(sort_by_version_cmp),
+                    )[: -self.args.retain_how_many]
+                )
 
             except CalledProcessError as e:
                 print(e)
 
-        print(" ")
-        if self.args.dry_run:
-            print("\nThis packages would be deleted:")
-            for p in packages_to_remove:
-                print(p)
+        if len(packages_to_remove) > 0:
+            print(f"Removing {len(packages_to_remove)} packages in total")
+            with tqdm(total=len(packages_to_remove)) as pbar:
+                for package in packages_to_remove:
+                    pbar.set_description(package)
+                    if not self.args.dry_run:
+                        check_output(
+                            ["aptly", "repo", "remove", self.args.repo, package]
+                        )
+                    else:
+                        sleep(0.1)
+                    pbar.update(1)
+            check_output(["aptly", "db", "cleanup"])
         else:
-            if packages_to_remove:
-                print(check_output(["aptly", "repo", "remove",
-                                    self.args.repo] + packages_to_remove))
-                print("\nRun 'aptly publish update ...' "
-                      "to update the repository.")
-            else:
-                print("nothing to remove")
+            print("No packages to remove")
 
 
-# Print iterations progress
-def printProgressBar(iteration, total, prefix='', suffix='', decimals=1,
-                     length=100, fill='#'):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent
-                                  complete (Int)
-        length      - Optional  : character length of bar (Int)
-        fill        - Optional  : bar fill character (Str)
-    """
-    percent = ("{0:." + str(decimals) + "f}").format(
-        100 * (iteration / float(total)))
-    filled_length = int(length * iteration // total)
-    bar = fill * filled_length + '-' * (length - filled_length)
-    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end='\r')
-    # Print New Line on Complete
-    if iteration == total:
-        print()
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     purge_old_versions = PurgeOldVersions()
     purge_old_versions.purge()
