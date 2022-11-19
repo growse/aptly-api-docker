@@ -1,4 +1,4 @@
-FROM debian:bullseye-20220801-slim@sha256:139a42fa3bde3e5bad6ae912aaaf2103565558a7a73afe6ce6ceed6e46a6e519
+FROM debian:bullseye-slim
 
 RUN --mount=type=cache,target=/var/cache/apt apt-get update && apt-get install --no-install-recommends -y aptly gnupg2 python3 python3-apt python3-tqdm && rm -rf /var/lib/apt/lists/*
 
