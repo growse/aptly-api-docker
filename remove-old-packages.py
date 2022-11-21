@@ -33,7 +33,7 @@ class PurgeOldVersions:
             action="store_true",
         )
         parser.add_argument(
-            "--repo", dest="repo", help="Which repository should be searched?", type=str
+            "--repo", dest="repo", help="Which repository should be searched?", type=str, default="defaultrepo"
         )
         parser.add_argument(
             "--package-query",
