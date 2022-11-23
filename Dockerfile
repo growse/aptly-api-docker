@@ -7,7 +7,7 @@ VOLUME /var/lib/aptly-api
 RUN useradd -r -s /bin/false -u 101 -d /var/lib/aptly-api aptly
 RUN ln -s /var/lib/aptly-api/.aptly.conf /etc/aptly.conf
 
-# USER 101
+USER 101
 ENV GPG_TTY=/dev/tty
 
 WORKDIR /var/lib/aptly-api
