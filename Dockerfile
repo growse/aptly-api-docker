@@ -7,11 +7,12 @@ VOLUME /var/lib/aptly-api
 RUN useradd -r -s /bin/false -u 101 -d /var/lib/aptly-api aptly
 RUN ln -s /var/lib/aptly-api/.aptly.conf /etc/aptly.conf
 
-USER 101
 ENV GPG_TTY=/dev/tty
 
 WORKDIR /var/lib/aptly-api
 COPY remove-old-packages.py /remove-old-packages.py
 RUN chmod +x /remove-old-packages.py
+
+USER 101
 
 CMD ["aptly","api","serve","-listen","unix:/tmp/aptly/aptly-api.sock","-no-lock"]
