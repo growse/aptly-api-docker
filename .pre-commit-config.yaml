@@ -1,0 +1,21 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v3.2.0
+      hooks:
+          - id: trailing-whitespace
+          - id: end-of-file-fixer
+          - id: check-yaml
+            args: [--allow-multiple-documents]
+          - id: check-added-large-files
+    - repo: https://github.com/mgaruccio/pre-commit-hook-ensure-sops
+      rev: v1.2
+      hooks:
+          - id: sops-encryption
+
+            #    - repo: https://github.com/stackrox/kube-linter
+            #      rev: 0.6.0
+            #      hooks:
+            #          - id: kube-linter
+            #            args: [lint]
