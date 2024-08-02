@@ -4,5 +4,16 @@
     "github>growse/renovate-template",
     "github>growse/renovate-template:automerge-minor-and-patch",
     "github>growse/renovate-template:automerge-github-actions"
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "debian"
+      ],
+      "versioning": "regex:^bookworm-(?<major>\\d+)-slim$"
+    }
   ]
 }
