@@ -7,13 +7,10 @@
   ],
   "packageRules": [
     {
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "debian"
-      ],
-      "versioning": "regex:^bookworm-(?<major>\\d+)-slim$"
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["debian"],
+      "versioning": "regex:^bookworm-(?<major>\\d+)-slim$",
+      "autoMerge": true
     }
   ]
 }
