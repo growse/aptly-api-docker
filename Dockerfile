@@ -1,4 +1,4 @@
-FROM debian:bookworm-20240904-slim
+FROM debian:bookworm-20240926-slim
 
 RUN --mount=type=cache,target=/var/cache/apt apt-get update && apt-get install --no-install-recommends -y aptly gnupg2 python3 python3-apt python3-tqdm vim && rm -rf /var/lib/apt/lists/*
 
