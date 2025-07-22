@@ -1,6 +1,8 @@
-FROM debian:bookworm-20250630-slim
+FROM debian:trixie-20250630-slim
 
-RUN --mount=type=cache,target=/var/cache/apt apt-get update && apt-get install --no-install-recommends -y aptly gnupg2 python3 python3-apt python3-tqdm vim && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt \
+	--mount=type=cache,target=/var/lib/apt/lists \
+	apt-get update && apt-get install --no-install-recommends -y aptly gnupg2 python3 python3-apt python3-tqdm vim
 
 VOLUME /var/lib/aptly-api
 
